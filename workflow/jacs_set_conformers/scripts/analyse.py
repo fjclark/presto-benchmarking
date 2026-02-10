@@ -14,12 +14,22 @@ import typer
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from openff.toolkit.utils.exceptions import RadicalsNotSupportedError
+import mdtraj
 
-from bespokefit_smee.sample import _get_ml_omm_system, _get_integrator
+from presto.sample import (
+    _get_ml_omm_system,
+    _get_integrator,
+    _add_torsion_restraint_forces,
+    _update_torsion_restraints,
+    _remove_torsion_restraint_forces,
+)
+from presto.find_torsions import get_rot_torsions_by_rot_bond
 from openmm.app import Simulation
+from openmm.unit import Quantity, angstrom
 import openmm
 import matplotlib.pyplot as plt
 import pickle as pkl
+import torch
 from loguru import logger
 
 # Set the random seed for reproducibility
@@ -214,7 +224,12 @@ def get_energies_and_positions_mlp(
 
 
 def get_energies_ff(
-    mol: Molecule, ff: ForceField, minimise: bool = True
+    mol: Molecule,
+    ff: ForceField,
+    minimise: bool = True,
+    use_torsion_restraints: bool = False,
+    torsion_restraint_force_constant: float = 100.0,
+    mm_minimization_steps: int = 0,
 ) -> tuple[list[unit.Quantity], list[unit.Quantity]]:
     """
     Get single-point energies for all conformers in an SDF file using a force field.
@@ -223,6 +238,9 @@ def get_energies_ff(
         mol (Molecule): The molecule containing conformers.
         ff (ForceField): The force field to use.
         minimise (bool): Whether to minimise the conformers before calculating energies.
+        use_torsion_restraints (bool): Whether to restrain rotatable torsions during minimization.
+        torsion_restraint_force_constant (float): Force constant for torsion restraints in kJ/mol/rad².
+        mm_minimization_steps (int): Number of minimization steps when using torsion restraints.
 
     Returns:
         list[unit.Quantity]: A list of energies for each conformer.
@@ -235,14 +253,79 @@ def get_energies_ff(
 
     energies = []
     min_positions = []
+
+    # Setup torsion restraints if requested
+    force_indices = []
+    restraint_force_group = None
+    torsion_atoms_list = []
+
+    if use_torsion_restraints and minimise:
+        # Find rotatable torsions
+        torsions_dict = get_rot_torsions_by_rot_bond(mol)
+        torsion_atoms_list = list(torsions_dict.values())
+
+        if torsion_atoms_list:
+            logger.debug(
+                f"Adding {len(torsion_atoms_list)} torsion restraints with force constant {torsion_restraint_force_constant} kJ/mol/rad²"
+            )
+            force_indices, restraint_force_group = _add_torsion_restraint_forces(
+                simulation, torsion_atoms_list, torsion_restraint_force_constant
+            )
+        else:
+            logger.debug("No rotatable torsions found - proceeding without restraints")
+
     for positions in mol.conformers:
         simulation.context.setPositions(positions.to_openmm())
+
         if minimise:
-            simulation.minimizeEnergy(maxIterations=0)
-        state = simulation.context.getState(getEnergy=True, getPositions=True)
+            if use_torsion_restraints and torsion_atoms_list:
+
+                traj = mdtraj.Trajectory(
+                    xyz=positions.to_openmm()
+                    .value_in_unit(omm_unit.nanometer)
+                    .reshape(1, -1, 3),
+                    topology=mdtraj.Topology.from_openmm(simulation.topology),
+                )
+
+                current_angles = [
+                    mdtraj.compute_dihedrals(traj, [torsion_atoms], periodic=False)[0][
+                        0
+                    ]
+                    for torsion_atoms in torsion_atoms_list
+                ]
+
+                _update_torsion_restraints(
+                    simulation,
+                    force_indices,
+                    current_angles,
+                    torsion_restraint_force_constant,
+                )
+
+                # Minimize with specified number of steps
+                simulation.minimizeEnergy(maxIterations=mm_minimization_steps)
+
+                # Get state excluding restraint forces
+                groups_mask = sum(
+                    1 << group for group in range(32) if group != restraint_force_group
+                )
+                state = simulation.context.getState(
+                    getEnergy=True, getPositions=True, groups=groups_mask
+                )
+            else:
+                # Standard minimization without restraints
+                simulation.minimizeEnergy(maxIterations=mm_minimization_steps)
+                state = simulation.context.getState(getEnergy=True, getPositions=True)
+        else:
+            state = simulation.context.getState(getEnergy=True, getPositions=True)
+
         energy = state.getPotentialEnergy().value_in_unit(omm_unit.kilocalorie_per_mole)
         energies.append(energy * unit.kilocalorie / unit.mole)
         min_positions.append(state.getPositions())
+
+    # Remove torsion restraints if they were added
+    if force_indices:
+        logger.debug("Removing torsion restraint forces")
+        _remove_torsion_restraint_forces(simulation, force_indices)
 
     return energies, min_positions
 
@@ -400,7 +483,14 @@ def get_rmsd(
     )
 
 
-def main(bespoke_ff_name: str, bespoke_ff_path: str) -> None:
+def main(
+    bespoke_ff_name: str,
+    bespoke_ff_path: str,
+    use_torsion_restraints: bool = True,
+    torsion_restraint_force_constant: float = 10_000.0,
+    mm_minimization_steps: int = 0,
+    energy_cutoff: float | None = 3.0,
+) -> None:
     """
     Evaluate the performance of the bespoke force field on low
     energy conformers generated by CREST.
@@ -408,6 +498,11 @@ def main(bespoke_ff_name: str, bespoke_ff_path: str) -> None:
     Parameters:
         bespoke_ff_name (str): Name of the bespoke force field to use.
         bespoke_ff_path (str): Path to the bespoke force field file.
+        use_torsion_restraints (bool): Whether to restrain rotatable torsions during MM minimization.
+        torsion_restraint_force_constant (float): Force constant for torsion restraints in kJ/mol/rad².
+        mm_minimization_steps (int): Number of minimization steps when using torsion restraints.
+        energy_cutoff (float | None): Maximum energy (in kcal/mol) above the lowest energy conformer to include.
+            If None, all conformers are included.
     """
 
     input_molecules = pd.read_csv(LIGANDS_CSV_PATH)
@@ -433,6 +528,9 @@ def main(bespoke_ff_name: str, bespoke_ff_path: str) -> None:
         total=len(input_molecules),
         desc="Processing all molecules",
     ):
+        # if row["id"] != "NSBCPOIFPUGGSS-XGNRSVHBNA-N":
+        # if row["id"] != "BDDJHMXDNQHMGI-UHFFFAOYNA-N":
+        #     continue
 
         # Get the base and output directories
         crest_dir = crest_output_dirs[row["id"]]
@@ -509,6 +607,44 @@ def main(bespoke_ff_name: str, bespoke_ff_path: str) -> None:
             )
             logger.info(f"Saved MLP-minimised structures to {mlp_sdf_path}")
 
+        # Filter conformers based on energy cutoff if specified
+        if energy_cutoff is not None:
+            mlp_energies_array = np.array([e.magnitude for e in mlp_energies])
+            min_energy = np.min(mlp_energies_array)
+            relative_energies = mlp_energies_array - min_energy
+
+            # Find conformers within the energy cutoff
+            within_cutoff = relative_energies <= energy_cutoff
+            n_filtered = np.sum(~within_cutoff)
+
+            if n_filtered > 0:
+                n_remaining = np.sum(within_cutoff)
+
+                logger.info(
+                    f"Filtering {n_filtered} conformers with energy > {energy_cutoff} kcal/mol "
+                    f"above minimum ({n_remaining} conformers remaining)"
+                )
+
+                if n_remaining <= 1:
+                    logger.warning(
+                        f"{n_remaining} conformer(s) remaining after energy filtering for {row['id']}. Skipping."
+                    )
+                    continue
+
+                # Filter energies and positions
+                mlp_energies = [
+                    e for i, e in enumerate(mlp_energies) if within_cutoff[i]
+                ]
+                mlp_positions = [
+                    p for i, p in enumerate(mlp_positions) if within_cutoff[i]
+                ]
+
+                if len(mlp_energies) == 0:
+                    logger.warning(
+                        f"No conformers remaining after energy filtering for {row['id']}. Skipping."
+                    )
+                    continue
+
         # Update the molecule with the minimised MLP positions
         mol._conformers = openmm_to_openff_positions(mlp_positions)
 
@@ -523,17 +659,28 @@ def main(bespoke_ff_name: str, bespoke_ff_path: str) -> None:
         ff_energies_and_positions = {}
 
         for ff_name in ffs.keys():
-            ff_sdf_path = analysis_dir / f"{row['id']}_{ff_name}_minimised.sdf"
+            # Add suffix to filename if using torsion restraints
+            suffix = "_torsion_restrained" if use_torsion_restraints else ""
+            ff_sdf_path = analysis_dir / f"{row['id']}_{ff_name}_minimised{suffix}.sdf"
+
             if ff_sdf_path.exists():
                 logger.info(f"{ff_name} minimised SDF already exists for {row['id']}")
                 ff_energies, ff_positions = read_conformers_from_sdf(ff_sdf_path)
             else:
+                restraint_msg = (
+                    " with torsion restraints" if use_torsion_restraints else ""
+                )
                 logger.info(
-                    f"Calculating {ff_name} minimised structures for {row['id']}"
+                    f"Calculating {ff_name} minimised structures{restraint_msg} for {row['id']}"
                 )
 
                 ff_energies, ff_positions = get_energies_ff(
-                    mol, ffs[ff_name], minimise=True
+                    mol,
+                    ffs[ff_name],
+                    minimise=True,
+                    use_torsion_restraints=use_torsion_restraints,
+                    torsion_restraint_force_constant=torsion_restraint_force_constant,
+                    mm_minimization_steps=mm_minimization_steps,
                 )
 
                 # Save FF-minimised structures to analysis directory
@@ -770,12 +917,9 @@ def main(bespoke_ff_name: str, bespoke_ff_path: str) -> None:
         ax.set_ylabel("RMSD to MLP Minimised Structure (Å)")
         ax.set_title("RMSD of FF Minimised Structures to MLP Minimised Structures")
         # Show all idx labels on x axis, and add the energy under each tick
-        ax.set_xticks(indices)
+        ax.set_xticks(sorted_indices)
         ax.set_xticklabels(
-            [
-                f"{i}\n{mlp_energies_array[sorted_indices[i]]:.2f}"
-                for i in range(len(mlp_positions))
-            ]
+            [f"{i}\n{mlp_energies_array[i]:.2f}" for i in range(len(mlp_positions))]
         )
         ax.legend()
         fig.savefig(analysis_dir / "rmsd_comparison.png", dpi=300)
