@@ -51,7 +51,8 @@ rule run_presto:
     resources:
         mem_mb=8000,
         runtime=120,  # minutes
-        slurm_extra="--gres=gpu:1",
+        slurm_partition="gpu-s_free",
+        slurm_extra="--gpus-per-task=1",
     run:
         run_presto(
             config_path=Path(input.config_file),
