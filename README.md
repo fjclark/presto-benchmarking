@@ -10,11 +10,6 @@ pixi run snakemake --cores all
 
 ## Running on a SLURM cluster
 
-Install the SLURM executor plugin (already listed in `pyproject.toml`, so `pixi install` handles this):
-```bash
-pixi install
-```
-
 Create a workflow-specific profile (the `profiles/` directory is git-ignored):
 ```bash
 mkdir -p profiles/default
@@ -35,5 +30,3 @@ Snakemake automatically picks up `profiles/default` as the default profile, so y
 ```bash
 pixi run snakemake
 ```
-
-The lightweight rules (`split_tnet500_input`, `create_combined_force_field`) run on the head node.
