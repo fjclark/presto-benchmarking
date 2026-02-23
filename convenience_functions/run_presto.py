@@ -2,9 +2,9 @@
 
 from pathlib import Path
 
-from presto.workflow import get_bespoke_force_field
 from presto.settings import WorkflowSettings
 from presto.utils._suppress_output import suppress_unwanted_output
+from presto.workflow import get_bespoke_force_field
 
 
 def run_presto(

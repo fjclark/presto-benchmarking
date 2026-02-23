@@ -1,8 +1,9 @@
 """Functionality for combining offxml files into a single offxml file."""
 
-from openff.toolkit import ForceField
 from pathlib import Path
+
 import loguru
+from openff.toolkit import ForceField
 
 logger = loguru.logger
 

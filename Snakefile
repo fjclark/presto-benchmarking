@@ -17,9 +17,27 @@ def smiles_dir_outputs(wildcards: Any, checkpoint_obj: Any, smiles_dir: str, out
     return expand(output_pattern, molecule=molecules)
 
 
+def validation_force_fields(wildcards: Any) -> list[str]:
+    """Generic input function for create_combined_force_field.
+
+    Infers the smiles directory from the dataset wildcard and resolves
+    the per-molecule force field paths after the relevant checkpoint completes.
+    """
+    dataset = wildcards.dataset
+    checkpoint_obj = checkpoints.split_tnet500_input if dataset == "tnet500" else None
+    if checkpoint_obj is None:
+        raise ValueError(f"No checkpoint registered for dataset '{dataset}'")
+    return smiles_dir_outputs(
+        wildcards,
+        checkpoint_obj=checkpoint_obj,
+        smiles_dir=f"benchmarking/{dataset}/input/{wildcards.dataset_type}/smiles",
+        output_pattern=f"benchmarking/{dataset}/output/{wildcards.dataset_type}/{wildcards.config_name}/{{molecule}}/bespoke_force_field.offxml",
+    )
+
+
 rule all:
     input:
-        "benchmarking/tnet500/output/default/combined_force_field.offxml",
+        "benchmarking/tnet500/output/validation/default/combined_force_field.offxml",
 
 
 ############ General Rules #############
@@ -29,7 +47,7 @@ rule run_presto:
         smiles_file="benchmarking/{dataset}/input/{dataset_type}/smiles/{molecule}.smi",
         config_file="configs/{config_name}.yaml",
     output:
-        directory("benchmarking/{dataset}/output/{config_name}/{molecule}/bespoke_force_field.offxml"),
+        "benchmarking/{dataset}/output/{dataset_type}/{config_name}/{molecule}/bespoke_force_field.offxml",
     run:
         run_presto(
             config_path=Path(input.config_file),
@@ -39,12 +57,13 @@ rule run_presto:
 
 rule create_combined_force_field:
     input:
-        force_fields=directory("benchmarking/{dataset}/output/{config_name}/*/bespoke_force_field.offxml"),
+        force_fields=validation_force_fields,
     output:
-        "benchmarking/{dataset}/output/{config_name}/combined_force_field.offxml",
+        "benchmarking/{dataset}/output/{dataset_type}/{config_name}/combined_force_field.offxml",
     run:
         ff_to_combine_paths = {
-            ff_path.stem: ff_path for ff_path in Path(input.force_fields[0]).parent.glob("*/bespoke_force_field.offxml")
+            Path(ff_path).parent.name: Path(ff_path)
+            for ff_path in input.force_fields
         }
         combine_force_fields(
             ff_to_combine_paths=ff_to_combine_paths,
@@ -67,12 +86,12 @@ checkpoint split_tnet500_input:
     input:
         "benchmarking/tnet500/input/full_dataset.json"
     output:
-        validation_set_dir=directory("benchmarking/tnet500/input/validation_set"),
-        validation_set_json="benchmarking/tnet500/input/validation_set/validation_set.json",
-        validation_set_smiles=directory("benchmarking/tnet500/input/validation_set/smiles"),
-        test_set_dir=directory("benchmarking/tnet500/input/test_set"),
-        test_set_json="benchmarking/tnet500/input/test_set/test_set.json",
-        test_set_smiles=directory("benchmarking/tnet500/input/test_set/smiles"),
+        validation_set_dir=directory("benchmarking/tnet500/input/validation"),
+        validation_set_json="benchmarking/tnet500/input/validation/validation.json",
+        validation_set_smiles=directory("benchmarking/tnet500/input/validation/smiles"),
+        test_set_dir=directory("benchmarking/tnet500/input/test"),
+        test_set_json="benchmarking/tnet500/input/test/test.json",
+        test_set_smiles=directory("benchmarking/tnet500/input/test/smiles"),
     run:
         create_validation_and_test_sets(
             input_json_path=Path(input[0]),

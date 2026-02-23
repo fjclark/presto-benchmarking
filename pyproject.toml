@@ -51,6 +51,7 @@ openmmforcefields = ">=0.15.1,<0.16"
 openeye-toolkits = ">=2025.2.1,<2026"
 ruff = "*"
 mypy = "*"
+pre-commit = "*"
 
 [tool.pixi.pypi-dependencies]
 presto-benchmark = { path = ".", editable = true }
@@ -73,6 +74,7 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pixi.tasks]
+pre-commit = { cmd = "pre-commit run --all-files" }
 lint = { cmd = "ruff check convenience_functions" }
 format = { cmd = "ruff format convenience_functions && ruff check --fix --select I convenience_functions" }
 type-check = { cmd = "mypy --follow-imports=silent --ignore-missing-imports --strict convenience_functions" }

@@ -139,13 +139,13 @@ def create_validation_and_test_sets(
         valid_inds, smiles_df, validation_output_path / "smiles"
     )
     save_sub_dataset(
-        valid_inds, input_json_path, validation_output_path / "validation_set.json"
+        valid_inds, input_json_path, validation_output_path / "validation.json"
     )
 
     save_torsion_img(test_inds, smiles_df, test_output_path / "test_set_torsions.png")
     save_smiles(test_inds, smiles_df, test_output_path / SMILES_NAME)
     save_individual_smiles_files(test_inds, smiles_df, test_output_path / "smiles")
-    save_sub_dataset(test_inds, input_json_path, test_output_path / "test_set.json")
+    save_sub_dataset(test_inds, input_json_path, test_output_path / "test.json")
 
     logger.info(f"Validation set size: {len(valid_inds)} molecules")
     logger.info(f"Test set size: {len(test_inds)} molecules")
