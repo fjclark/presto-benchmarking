@@ -177,5 +177,4 @@ cython_debug/
 .snakemake/
 
 # Workflow input and output directories
-workflow/torsionnet_500/input/
-workflow/torsionnet_500/output/
+benchmarking

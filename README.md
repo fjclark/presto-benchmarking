@@ -1,10 +1,9 @@
-# bespokefit-smee-benchmarking
-Benchmark bespokefit-smee
+# presto-benchmarking
+[`presto`](https://github.com/cole-group/presto/tree/devel) is a tool for fitting bespoke SMIRNOFF force fields for your molecule(s) of interest. This repo contains a `Snakemake` workflow for benchmarking `presto`.
 
-Create the environment with:
-
+To rerun the workflow, [install `pixi`](https://pixi.prefix.dev/latest/installation/) and run:
+```bash
+git clone https://github.com/fjclark/presto-benchmarking.git
+cd presto-benchmarking
+pixi run snakemake --cores all
 ```
-make env
-```
-
-Then see the instructions in `workflow/README.md`.

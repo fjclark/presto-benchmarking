@@ -86,8 +86,8 @@ rule analyse_hyperparameter_tuning:
             "--base-force-fields", "openff_unconstrained-2.3.0-rc2.offxml",
             "--qcarchive-torsion-data", "../input/validation_set/validation_set.json",
         ]
-        for ff in extra_force_fields:
-            cmd.extend(["--extra-force-fields", ff])
+        # for ff in extra_force_fields:
+        #     cmd.extend(["--extra-force-fields", ff])
 
         subprocess.run(cmd, check=True)
         os.chdir("../..")
@@ -122,7 +122,42 @@ rule run_fits:
         run_bespokefit_all_smiles(input.config_file,
                                   input.smiles_file,
                                   wildcards.benchmark_dir,
-                                  wildcards.config)
+                                  wildcards.config,
+                                  from_precomputed=False)
+
+# rule analyse_fits:
+#     input:
+#         force_field="{benchmark_dir}/output/{config}/combined_forcefield.offxml",
+#         input_data="{benchmark_dir}/input/input.json"
+#     output:
+#         dummy_output="{benchmark_dir}/analysis/{config}_dummy_output.txt"
+#     run:
+#         from yammbs.scripts.run_torsion_comparisons import main
+#         from pathlib import Path
+#         analysis_dir = Path(f"{wildcards.benchmark_dir}/analysis")
+#         analysis_dir.mkdir(parents=True, exist_ok=True)
+#         os.chdir(analysis_dir)
+
+#         extra_force_fields = [
+#             f"../output/{wildcards.config}/combined_forcefield.offxml"
+#         ]
+
+#         cmd = [
+#             "yammbs_analyse_torsions",
+#             "--base-force-fields", "openff_unconstrained-2.3.0-rc2.offxml",
+#             "--base-force-fields", "openff_no_water_unconstrained-3.0.0-alpha0.offxml",
+#             "--base-force-fields", "../../input_forcefields/espaloma.offxml",
+#             "--qcarchive-torsion-data", f"../input/{os.path.basename(input.input_data)}",
+#         ]
+
+#         for ff in extra_force_fields:
+#             cmd.extend(["--extra-force-fields", ff])
+
+#         subprocess.run(cmd, check=True)
+#         os.chdir("../..")
+
+#         with open(output.dummy_output, 'w') as f:
+#             f.write("Analysis complete.\n")
 
 rule analyse_torsionnet_500:
     input:
@@ -178,13 +213,17 @@ rule analyse_jacs_conformers_frags_torsions:
         mkdir -p jacs_set_conformers_frags_torsions/analysis
         cd jacs_set_conformers_frags_torsions/analysis
         yammbs_analyse_torsions --base-force-fields openff_unconstrained-2.3.0-rc2.offxml \
+        --extra-force-fields ../../input_forcefields/espaloma.offxml \
         --extra-force-fields ../../input_forcefields/sage-default-bespoke.offxml \
+        --extra-force-fields ../output/opt-aceff2-2it/combined_forcefield.offxml \
+        --extra-force-fields ../output/opt-aceff2-2it-more-metad-500k/combined_forcefield.offxml \
         --extra-force-fields ../output/{wildcards.config}/combined_forcefield.offxml \
         --qcarchive-torsion-data ../input/input.json &&
         python ../scripts/get_summary.py {wildcards.config} &&
         touch {output.dummy_output}
         cd ../..
         """
+        # --extra-force-fields ../output/opt-aceff2-2it/combined_forcefield.offxml \
         # --extra-force-fields ../output/md_plus_tor_min_longer_dual_ens_all_ml_energy_no_restr/combined_forcefield.offxml \
         # --extra-force-fields ../output/egret1_opt_reg/combined_forcefield.offxml \
         # yammbs_analyse_torsions --base-force-fields openff_unconstrained-2.3.0-rc2.offxml \
