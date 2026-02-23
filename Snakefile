@@ -48,6 +48,10 @@ rule run_presto:
         config_file="configs/{config_name}.yaml",
     output:
         "benchmarking/{dataset}/output/{dataset_type}/{config_name}/{molecule}/bespoke_force_field.offxml",
+    resources:
+        mem_mb=8000,
+        runtime=120,  # minutes
+        slurm_extra="--gres=gpu:1",
     run:
         run_presto(
             config_path=Path(input.config_file),

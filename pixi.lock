@@ -482,6 +482,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/smirnoff-plugins-2025.09.0-pyh5ded981_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/smmap-5.0.2-pyhd8ed1ab_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-9.14.6-hdfd78af_0.conda
+      - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-slurm-2.3.1-pyhdfd78af_0.conda
+      - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-slurm-jobstep-0.4.0-pyhdfd78af_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-common-1.22.0-pyhd4c3c12_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-executor-plugins-9.3.9-pyhdfd78af_0.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-logger-plugins-2.0.0-pyhd4c3c12_0.conda
@@ -6429,7 +6431,7 @@ packages:
 - pypi: ./
   name: presto-benchmark
   version: 0.1.0
-  sha256: c02cd61a7e65f9a3e64f1ed3e2a28c7c80e8862e99b292222bff44927af98d86
+  sha256: 9963fdfd49beb9bbcadd600cc73f86519b22760b90b033a99eaffc23fdb6b73b
   requires_python: '>=3.12'
 - pypi: https://files.pythonhosted.org/packages/ee/8c/83087ebc47ab0396ce092363001fa37c17153119ee282700c0713a195853/prettytable-3.17.0-py3-none-any.whl
   name: prettytable
@@ -7815,6 +7817,36 @@ packages:
   purls: []
   size: 10479
   timestamp: 1767893675461
+- conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-slurm-2.3.1-pyhdfd78af_0.conda
+  sha256: 45fbb785a9f248516a8858030bcae6dfcec11db229931de92299416df68add5d
+  md5: 2ca31fb5cd301bb4cd28825c74f8cd62
+  depends:
+  - numpy >=1.26.4,<3.0
+  - pandas >=2.2.3,<3.0
+  - python >=3.11.0,<4.0.0
+  - pyyaml
+  - snakemake-executor-plugin-slurm-jobstep >=0.4.0,<0.5.0
+  - snakemake-interface-common >=1.21.0,<2.0.0
+  - snakemake-interface-executor-plugins >=9.3.9,<10.0.0
+  - throttler >=1.2.2,<2.0.0
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/snakemake-executor-plugin-slurm?source=hash-mapping
+  size: 40377
+  timestamp: 1771605066061
+- conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-slurm-jobstep-0.4.0-pyhdfd78af_0.conda
+  sha256: 82ad84bf106e0fbab62f6c001311aff53faefe323254c8b2b3540f310bb48dfe
+  md5: 7d4f2bf739967798eb4d8c02d59cf36c
+  depends:
+  - python >=3.11.0,<4.0.0
+  - snakemake-interface-common >=1.13.0,<2.0.0
+  - snakemake-interface-executor-plugins >=9.0.0,<10.0.0
+  license: MIT
+  purls:
+  - pkg:pypi/snakemake-executor-plugin-slurm-jobstep?source=hash-mapping
+  size: 14678
+  timestamp: 1765807808315
 - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-common-1.22.0-pyhd4c3c12_0.conda
   sha256: d13802cb086c1b6be2c4e903e01f946fc973436e6100514169df82e537166bce
   md5: e9bb00d8c7d26a5cd220d3d73bee45fb

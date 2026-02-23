@@ -1,3 +1,6 @@
+# Snakemake profiles (contain cluster-specific settings)
+profiles/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
