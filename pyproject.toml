@@ -53,6 +53,7 @@ openeye-toolkits = ">=2025.2.1,<2026"
 ruff = "*"
 mypy = "*"
 pre-commit = "*"
+mdanalysis = ">=2.10.0,<3"
 
 [tool.pixi.pypi-dependencies]
 presto-benchmark = { path = ".", editable = true }
