@@ -4,9 +4,8 @@ version = "0.1.0"
 description = "Presto benchmarking workflow"
 requires-python = ">=3.12"
 
-# [project.scripts]
-# minimise-protein-torsion = "scripts.protein_torsion.minimise_protein_torsion:main"
-# plot-protein-torsion = "scripts.protein_torsion.plot_protein_torsion:main"
+[project.scripts]
+presto-benchmark = "convenience_functions._cli:app"
 
 [tool.pixi.workspace]
 channels = ["conda-forge", "bioconda", "openeye"]
@@ -15,34 +14,18 @@ platforms = ["linux-64"]
 [tool.pixi.system-requirements]
 cuda = "12"
 
-[tool.pixi.dependencies]
+[tool.pixi.feature.common.dependencies]
 python = ">=3.12"
 pip = "*"
-pyyaml = "*"
-datasets = "*"
-jupyter = "*"
-nglview = "*"
-smirnoff-plugins = ">=0.0.4"
-openmm = "*"
-openmm-ml = ">=1.5"
 openff-toolkit = "*"
 openff-units = "*"
 openff-qcsubmit = ">=0.55.0"
 openff-interchange = "*"
-tensorboardX = "*"
-tensorboard = "*"
-versioneer = "*"
-pytorch-gpu = "*"
-pydantic = ">=2"
-pydantic-settings = "*"
+smirnoff-plugins = ">=2025.09.0"
 loguru = "*"
-qcelemental = "*"
 seaborn = "*"
 snakemake = "*"
 snakemake-executor-plugin-slurm = "*"
-pydantic-units = "*"
-qcfractal = ">=0.63"
-cuda-version = ">=12"
 ipdb = "*"
 bokeh = "*"
 panel = "*"
@@ -50,17 +33,38 @@ openbabel = "*"
 crest = "*"
 statannotations = "*"
 pingouin = ">=0.5.5,<0.6"
-openmm-torch = "*"
-torchmd-net = "*"
 openmmforcefields = ">=0.15.1,<0.16"
 openeye-toolkits = ">=2025.2.1,<2026"
 ruff = "*"
 mypy = "*"
 pre-commit = "*"
 mdanalysis = ">=2.10.0,<3"
+typer = "*"
+qcelemental = "*"
+nglview = "*"
+jupyter = "*"
+qcfractal = ">=0.63"
 
-[tool.pixi.pypi-dependencies]
+[tool.pixi.feature.common.pypi-dependencies]
 presto-benchmark = { path = ".", editable = true }
+
+[tool.pixi.feature.standard.dependencies]
+pyyaml = "*"
+datasets = "*"
+openmm = "*"
+openmm-ml = ">=1.5"
+tensorboardX = "*"
+tensorboard = "*"
+versioneer = "*"
+pytorch-gpu = "*"
+pydantic = ">=2"
+pydantic-settings = "*"
+pydantic-units = "*"
+cuda-version = ">=12"
+openmm-torch = "*"
+torchmd-net = "*"
+
+[tool.pixi.feature.standard.pypi-dependencies]
 mace-torch = "*"
 smee = { git = "https://github.com/openforcefield/smee.git", rev = "36bc8286b16ae815f13cfb10d8096ff1b9aeca0e" }
 descent = { git = "https://github.com/openforcefield/descent", rev = "15101d021d2a387809f0d877c61d4baabecdc78e" }
@@ -69,12 +73,19 @@ presto = { git = "https://github.com/cole-group/presto.git", rev = "ecb2e96b4f31
 yammbs = { git = "https://github.com/openforcefield/yammbs", rev = "faster_datasets" }
 deepchem = { version = ">=2.7.0", extras = ["jax"] } # Seems to interfere with pytorch if ["torch"]
 
+[tool.pixi.feature.espaloma.dependencies]
+espaloma = ">=0.3.1"
+
+[tool.pixi.environments]
+default = {features = ["common", "standard"]}
+espaloma = {features = ["common", "espaloma"]}
+
 [tool.setuptools.package-dir]
 "presto_benchmark" = "convenience_functions"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["convenience_functions*", "scripts*"]
+include = ["convenience_functions*"]
 
 [build-system]
 requires = ["setuptools>=45", "wheel"]

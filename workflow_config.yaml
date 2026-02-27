@@ -1,0 +1,25 @@
+# Snakemake workflow configuration
+
+# Random seed for reproducibility
+random_seed: 0
+
+# TNet500 dataset splitting
+tnet500_frac_test: 0.8  # 20% validation, 80% test
+
+# Protein force field configurations for benchmarking
+protein_force_fields:
+  "Sage_230":
+    ff_path: "input_ff/openff_unconstrained-2.3.0.offxml"
+    ff_type: "smirnoff-nagl"
+  "Rosemary_Alpha_0":
+    ff_path: "input_ff/openff_no_water_unconstrained-3.0.0-alpha0.offxml"
+    ff_type: "smirnoff-nagl"
+  ff14SB:
+    ff_path: "input_ff/ff14SB.xml"
+    ff_type: "amber"
+  ff19SB:
+    ff_path: "input_ff/protein.ff19SB.xml"
+    ff_type: "amber"
+  espaloma:
+    ff_path: "dummy_ff.xml"
+    ff_type: "espaloma"
