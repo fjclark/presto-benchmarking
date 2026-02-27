@@ -37,7 +37,7 @@ def save_individual_smiles_files(
 ) -> None:
     """Save an individual .smi file for each molecule in the subset."""
     output_dir.mkdir(exist_ok=True)
-    subset_df = smiles_df.iloc[ids]
+    subset_df = smiles_df[smiles_df["id"].isin(ids)]
     for _, row in subset_df.iterrows():
         id_ = row["id"]
         smiles = row["smiles"]
@@ -67,7 +67,7 @@ def split_dataset_maxmin(
 
 
 def save_torsion_img(ids: list[int], smiles_df: pd.DataFrame, filename: Path) -> None:
-    subset_df = smiles_df.iloc[ids]
+    subset_df = smiles_df[smiles_df["id"].isin(ids)]
     rdkit_mols = [
         Molecule.from_mapped_smiles(smiles, allow_undefined_stereo=True).to_rdkit()
         for smiles in subset_df["smiles"]
@@ -86,7 +86,7 @@ def save_torsion_img(ids: list[int], smiles_df: pd.DataFrame, filename: Path) ->
 
 
 def save_smiles(ids: list[int], smiles_df: pd.DataFrame, filename: Path) -> None:
-    subset_df = smiles_df.iloc[ids]
+    subset_df = smiles_df[smiles_df["id"].isin(ids)]
     subset_df.to_csv(filename, index=False)
 
 
@@ -94,7 +94,10 @@ def save_sub_dataset(ids: list[int], json_file: Path, output_file: Path) -> None
     with open(json_file, "r") as f:
         data = json.load(f)
 
-    subset_data = {"qm_torsions": [data["qm_torsions"][i] for i in ids]}
+    subset_data = {"qm_torsions": []}
+    for entry in data["qm_torsions"]:
+        if entry["id"] in ids:
+            subset_data["qm_torsions"].append(entry)
 
     with open(output_file, "w") as f:
         json.dump(subset_data, f, indent=2)
@@ -102,10 +105,10 @@ def save_sub_dataset(ids: list[int], json_file: Path, output_file: Path) -> None
 
 def create_validation_and_test_sets(
     input_json_path: Path,
-    frac_test: float,
     seed: int,
-    validation_output_path: Path,
     test_output_path: Path,
+    frac_test: float = 1.0,
+    validation_output_path: Path | None = None,
 ) -> None:
     """Split the input dataset into validation and test sets and save them.
 
@@ -120,27 +123,33 @@ def create_validation_and_test_sets(
 
     Args:
         input_json_path: Path to the input JSON file containing the dataset.
-        frac_test: Fraction of the dataset to use as the test set.
         seed: Random seed for reproducibility.
-        validation_output_path: Directory to save the validation set outputs.
         test_output_path: Directory to save the test set outputs.
+        frac_test: Fraction of the dataset to use as the test set.
+        validation_output_path: Directory to save the validation set outputs (if None, no validation set is created).
     """
     smiles_df = load_smiles(json_file=str(input_json_path))
     test_inds, valid_inds = split_dataset_maxmin(smiles_df, frac_test, seed)
 
-    validation_output_path.mkdir(exist_ok=True)
-    test_output_path.mkdir(exist_ok=True)
+    # Validation set is optional, so only save if validation_output_path is provided
+    if validation_output_path is not None:
+        validation_output_path.mkdir(exist_ok=True)
 
-    save_torsion_img(
-        valid_inds, smiles_df, validation_output_path / "validation_set_torsions.png"
-    )
-    save_smiles(valid_inds, smiles_df, validation_output_path / "smiles.csv")
-    save_individual_smiles_files(
-        valid_inds, smiles_df, validation_output_path / "smiles"
-    )
-    save_sub_dataset(
-        valid_inds, input_json_path, validation_output_path / "validation.json"
-    )
+        save_torsion_img(
+            valid_inds,
+            smiles_df,
+            validation_output_path / "validation_set_torsions.png",
+        )
+        save_smiles(valid_inds, smiles_df, validation_output_path / "smiles.csv")
+        save_individual_smiles_files(
+            valid_inds, smiles_df, validation_output_path / "smiles"
+        )
+        save_sub_dataset(
+            valid_inds, input_json_path, validation_output_path / "validation.json"
+        )
+
+    # We always save the test set
+    test_output_path.mkdir(exist_ok=True)
 
     save_torsion_img(test_inds, smiles_df, test_output_path / "test_set_torsions.png")
     save_smiles(test_inds, smiles_df, test_output_path / SMILES_NAME)

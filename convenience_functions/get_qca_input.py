@@ -38,11 +38,6 @@ def get_qca_torsion_input(
         f.write(dataset.model_dump_json())
 
 
-DATASET_NAME = "TNet500_minimal"
-
-logger = loguru.logger
-
-
 def download_tnet_500_spice_lot(output_dir: Path) -> None:
     """Download the TNet500_minimal dataset (SPICE LOT) which was
     computed for the MACE-OFF paper."""
